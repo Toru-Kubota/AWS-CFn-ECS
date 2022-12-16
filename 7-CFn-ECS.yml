@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: ECS
+
+Resources:
+### CloudWatch Log Group ###
+  ECSLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/ecs/logs/sbcntr-backend-def"
+
+### ECS Task Definition ###
+  ECStask:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: 512
+      Memory: 1024
+      NetworkMode: awsvpc
+      Family: nginx-def
+      ExecutionRoleArn: !ImportValue ECSTaskExecutionRoleId
+      containerDefinitions:
+        - Name: nginx
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.ap-northeast-1.amazonaws.com/ecr-rep:latest"
+          MemoryReservation: 512
+          PortMappings:
+            - containerPort: 80
+              protocol: tcp
+          Cpu: 256
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref ECSLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
+### ECS Cluster ###
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: ecs-cluster
+      ClusterSettings:
+        -
+          Name: containerInsights
+          Value: enabled
+
+### ECS Service ###
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      LaunchType: FARGATE
+      TaskDefinition: !Ref ECStask
+      Cluster: !Ref ECSCluster
+      ServiceName: ecs-service
+      DesiredCount: 1
+      EnableECSManagedTags: True
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - !ImportValue SgPrivateId
+          Subnets:
+            - !ImportValue SubnetPrivate1AId
+            - !ImportValue SubnetPrivate1CId
+      HealthCheckGracePeriodSeconds: 60
+      LoadBalancers:
+        -
+          ContainerName: nginx
+          ContainerPort: 80
+          TargetGroupArn: !ImportValue TargetGroupId
