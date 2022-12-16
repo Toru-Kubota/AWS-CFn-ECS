@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create Private ECR Repository
+
+#### ECR Repository ####
+Resources:
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: ecr-rep
+      ImageScanningConfiguration:
+        ScanOnPush: false
+      EncryptionConfiguration:
+        EncryptionType: "KMS"
