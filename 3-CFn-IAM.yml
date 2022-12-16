@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create IAM Policy / IAM Role
+
+#### IAM Policy for EC2 ####
+Resources:
+
+  IAMRoleforEC2:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: role-for-ec2
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref IAMPolicyforEC2
+      Tags:
+        - Key: Name
+          Value: role-for-ec2
+    DependsOn:
+      - IAMPolicyforEC2
+  InstanceProfileforEC2:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      InstanceProfileName: role-for-ec2
+      Roles:
+        - !Ref IAMRoleforEC2
+  IAMPolicyforEC2:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: access-to-ecr
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ecr:GetDownloadUrlForLayer
+              - ecr:GetRepositoryPolicy
+              - ecr:DescribeRepositories
+              - ecr:ListImages
+              - ecr:DescribeImages
+              - ecr:BatchGetImage
+              - ecr:InitiateLayerUpload
+              - ecr:UploadLayerPart
+              - ecr:CompleteLayerUpload
+              - ecr:PutImage
+              - ecr:GetAuthorizationToken
+              - ecr:ListImages
+              - ecr:BatchCheckLayerAvailability
+            Resource: "*"
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "ecs-task-exec-role"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+Outputs:
+  InstanceProfileforEC2Id:
+    Value: !Ref InstanceProfileforEC2
+    Export:
+      Name: InstanceProfileforEC2Id
+  ECSTaskExecutionRoleId:
+    Value: !Ref ECSTaskExecutionRole
+    Export:
+      Name: ECSTaskExecutionRoleId
