@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create ALB and Target Group
+
+#### ALB/Listener/Target Group ####
+Resources:
+### ALB ###
+  ExternalALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Name: external-alb
+      Scheme: internet-facing
+      IpAddressType: ipv4
+      SecurityGroups:
+        - !ImportValue SgPublicId
+      Subnets:
+        - !ImportValue SubnetPublic1AId
+        - !ImportValue SubnetPublic1CId
+      Tags:
+        - Key: Name
+          Value: external-alb
+
+### Target Group ###
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: elb-tg
+      TargetType: ip
+      Protocol: HTTP
+      ProtocolVersion: HTTP1
+      Port: 80
+      VpcId: !ImportValue VPCId
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: "/health"
+      HealthCheckPort: traffic-port
+      Matcher:
+        HttpCode: "404"
+
+### Listener ###
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref ExternalALB
+      Port: 80
+      Protocol: HTTP
+
+#### Outputs paramerer for cross stack ####
+Outputs:
+  TargetGroupId:
+    Value: !Ref TargetGroup
+    Export:
+      Name: TargetGroupId
