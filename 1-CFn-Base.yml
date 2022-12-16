@@ -1,0 +1,317 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Network - VPC/Subnet/RouteTable/IGW/SecurityGroup
+Resources:
+#### VPC Setting ####
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: Vpc
+
+#### Subnet Setting ####
+### IGW Setting ###
+  Igw:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: igw
+  VpcgwAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: Vpc
+      InternetGatewayId:
+        Ref: Igw
+
+### Public Subnet Setting ###
+## Subnet Setting ##
+  SubnetPublic1A:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId:
+        Ref: Vpc
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: subnet-public-1a
+        - Key: Type
+          Value: Public
+  SubnetPublic1C:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      VpcId:
+        Ref: Vpc
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: subnet-public-1c
+        - Key: Type
+          Value: Public
+
+## Route Table Setting ##
+  RoutePublic1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: Vpc
+      Tags:
+        - Key: Name
+          Value: route-public1
+  RoutePublic1Association1A:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RoutePublic1
+      SubnetId:
+        Ref: SubnetPublic1A
+  RoutePublic1Association1C:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RoutePublic1
+      SubnetId:
+        Ref: SubnetPublic1C
+  RoutePublic1Default:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: RoutePublic1
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: Igw
+    DependsOn:
+      - VpcgwAttachment
+
+### Public Subnet Setting ###
+## Subnet Setting ##
+  SubnetPrivate1A:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      VpcId:
+        Ref: Vpc
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: subnet-private-1a
+        - Key: Type
+          Value: Isolated
+  SubnetPrivate1C:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.3.0/24
+      VpcId:
+        Ref: Vpc
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: subnet-private-1c
+        - Key: Type
+          Value: Isolated
+
+## Route Table Setting ##
+  RoutePrivate1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: Vpc
+      Tags:
+        - Key: Name
+          Value: route-private1
+  RoutePrivate1Association1A:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RoutePrivate1
+      SubnetId:
+        Ref: SubnetPrivate1A
+  RoutePrivate1Association1C:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RoutePrivate1
+      SubnetId:
+        Ref: SubnetPrivate1C
+
+#### Security Group Setting ####
+### for public subnet ###
+  SgPublic:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for public
+      GroupName: public
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: from http from my network
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          Description: Allow ssh from my network
+          IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+      Tags:
+        - Key: Name
+          Value: sg-public
+      VpcId:
+        Ref: Vpc
+
+### for private subnet ###
+  SgPrivate:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for private
+      GroupName: private
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      Tags:
+        - Key: Name
+          Value: sg-private
+      VpcId:
+        Ref: Vpc
+
+### for VPC Endpoint ###
+  SgVpce:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group of VPC Endpoint
+      GroupName: vpce
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      Tags:
+        - Key: Name
+          Value: sg-vpce
+      VpcId:
+        Ref: Vpc
+
+### Secuity Group Link ####
+## Public -> Private ##
+  SgPrivateFromPublic:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: HTTP for Public
+      FromPort: 80
+      GroupId:
+        Fn::GetAtt:
+          - SgPrivate
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - SgPublic
+          - GroupId
+      ToPort: 80
+
+## Public -> VPC endpoint ##
+  SgVpceFromSgPublic:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: HTTPS for Public
+      FromPort: 443
+      GroupId:
+        Fn::GetAtt:
+          - SgVpce
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - SgPublic
+          - GroupId
+      ToPort: 443
+
+## Private -> VPC endpoint ##
+  SgVpceFromSgPrivate:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: HTTPS for Private
+      FromPort: 443
+      GroupId:
+        Fn::GetAtt:
+          - SgVpce
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - SgPrivate
+          - GroupId
+      ToPort: 443
+
+##### Output parameters for cross stack #####
+Outputs:
+### VPC ###
+  VPCId:
+    Value: !Ref Vpc
+    Export:
+      Name: VPCId
+### Subnet ###
+  SubnetPublic1AId:
+    Value: !Ref SubnetPublic1A
+    Export:
+      Name: SubnetPublic1AId
+  SubnetPublic1CId:
+    Value: !Ref SubnetPublic1C
+    Export:
+      Name: SubnetPublic1CId
+  SubnetPrivate1AId:
+    Value: !Ref SubnetPrivate1A
+    Export:
+      Name: SubnetPrivate1AId
+  SubnetPrivate1CId:
+    Value: !Ref SubnetPrivate1C
+    Export:
+      Name: SubnetPrivate1CId
+### Security Group ###
+  SgPublicId:
+    Value: !Ref SgPublic
+    Export:
+      Name: SgPublicId
+  SgPrivateId:
+    Value: !Ref SgPrivate
+    Export:
+      Name: SgPrivateId
+  SgVpceId:
+    Value: !Ref SgVpce
+    Export:
+      Name: SgVpceId
+### Route Table ###
+  RoutePublic1Id:
+    Value: !Ref RoutePublic1
+    Export:
+      Name: RoutePublic1Id
+  RoutePrivate1Id:
+    Value: !Ref RoutePrivate1
+    Export:
+      Name: RoutePrivate1Id
