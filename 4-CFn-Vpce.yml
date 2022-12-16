@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create VPC Endpoint
+
+#### VPC Endpoint ####
+Resources:
+### for ECR Api ###
+  ECRApiEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.api"
+      VpcId: !ImportValue VPCId
+      SubnetIds:
+        - !ImportValue SubnetPrivate1AId
+        - !ImportValue SubnetPrivate1CId
+      SecurityGroupIds:
+        - !ImportValue SgVpceId
+      PrivateDnsEnabled: true
+
+### for ECR dkr ###
+  ECRDkrEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.dkr"
+      VpcId: !ImportValue VPCId
+      SubnetIds:
+        - !ImportValue SubnetPrivate1AId
+        - !ImportValue SubnetPrivate1CId
+      SecurityGroupIds:
+        - !ImportValue SgVpceId
+      PrivateDnsEnabled: true
+
+### for ECR s3 ###
+  ECRS3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Gateway
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcId: !ImportValue VPCId
+      RouteTableIds:
+        - !ImportValue RoutePrivate1Id
+
+### for cloudwatch ###
+  CloudWatchEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.logs"
+      VpcId: !ImportValue VPCId
+      SubnetIds:
+        - !ImportValue SubnetPrivate1AId
+        - !ImportValue SubnetPrivate1CId
+      SecurityGroupIds:
+        - !ImportValue SgVpceId
+      PrivateDnsEnabled: true
